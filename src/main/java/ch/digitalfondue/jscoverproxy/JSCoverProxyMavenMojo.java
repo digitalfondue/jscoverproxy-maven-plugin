@@ -1,6 +1,7 @@
 package ch.digitalfondue.jscoverproxy;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.http.client.HttpClient;
@@ -35,10 +36,13 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	@Parameter(required = true)
 	private int port;
 
+	@Parameter(defaultValue = "coverage")
+	private String reportName;
+
 	private static String reportDir = "target/reports/jscover-localstorage-general";
 
-	private HtmlUnitDriver getWebClient() {
-		Proxy proxy = new Proxy().setHttpProxy("localhost:3129");
+	private HtmlUnitDriver getWebClient(int portForJSCoverProxy) {
+		Proxy proxy = new Proxy().setHttpProxy("localhost:" + portForJSCoverProxy);
 		DesiredCapabilities caps = new DesiredCapabilities();
 		caps.setCapability(CapabilityType.PROXY, proxy);
 		caps.setJavascriptEnabled(true);
@@ -48,7 +52,16 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 
 	public void execute() throws MojoExecutionException, MojoFailureException {
 
-		final String[] args = new String[] { "-ws", "--port=3129", "--proxy", "--local-storage",
+		int portForJSCoverProxy = 3129;
+
+		// find next free port (beware, race condition could be possible)
+		try (ServerSocket s = new ServerSocket(0)) {
+			s.setReuseAddress(true);
+			portForJSCoverProxy = s.getLocalPort();
+		} catch (IOException e) {
+		}
+
+		final String[] args = new String[] { "-ws", "--port=" + portForJSCoverProxy, "--proxy", "--local-storage",
 				"--no-instrument=webjars/", "--no-instrument=classpath/", "--no-instrument=spec/",
 				"--report-dir=" + reportDir };
 
@@ -63,7 +76,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 
 		server.start();
 
-		WebDriver webClient = getWebClient();
+		WebDriver webClient = getWebClient(portForJSCoverProxy);
 		webClient.get("http://" + host + ":" + port);
 		new WebDriverWait(webClient, 20).until(
 				ExpectedConditions.textToBePresentInElementLocated(By.className("jasmine-duration"), "finished"));
@@ -74,7 +87,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 				"var callback = arguments[arguments.length - 1];" + "callback(jscoverage_serializeCoverageToJSON());");
 
 		HttpClient httpClient = HttpClientBuilder.create().build();
-		HttpPost request = new HttpPost("http://localhost:3129/jscoverage-store/yoooo");
+		HttpPost request = new HttpPost("http://localhost:" + portForJSCoverProxy + "/jscoverage-store/" + reportName);
 		request.addHeader("content-type", "application/json");
 		request.setEntity(new StringEntity(res, StandardCharsets.UTF_8));
 		try {
