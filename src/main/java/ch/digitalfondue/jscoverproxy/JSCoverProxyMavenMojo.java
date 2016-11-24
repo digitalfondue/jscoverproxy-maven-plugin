@@ -3,6 +3,10 @@ package ch.digitalfondue.jscoverproxy;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -39,6 +43,9 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	@Parameter(defaultValue = "coverage")
 	private String reportName;
 
+	@Parameter
+	private List<String> noInstruments;
+
 	private static String reportDir = "target/reports/jscover-localstorage-general";
 
 	private HtmlUnitDriver getWebClient(int portForJSCoverProxy) {
@@ -46,7 +53,6 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		DesiredCapabilities caps = new DesiredCapabilities();
 		caps.setCapability(CapabilityType.PROXY, proxy);
 		caps.setJavascriptEnabled(true);
-
 		return new HtmlUnitDriver(caps);
 	}
 
@@ -61,18 +67,15 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		} catch (IOException e) {
 		}
 
-		final String[] args = new String[] { "-ws", "--port=" + portForJSCoverProxy, "--proxy", "--local-storage",
-				"--no-instrument=webjars/", "--no-instrument=classpath/", "--no-instrument=spec/",
-				"--report-dir=" + reportDir };
+		final List<String> args = new ArrayList<>(Arrays.asList("-ws", "--port=" + portForJSCoverProxy, "--proxy", "--local-storage", "--report-dir=" + reportDir));
+		if (noInstruments != null && !noInstruments.isEmpty()) {
+			args.addAll(noInstruments.stream().map(s -> "--no-instrument=" + s).collect(Collectors.toList()));
+		}
 
 		final Main main = new Main();
 		main.initialize();
 
-		Thread server = new Thread(new Runnable() {
-			public void run() {
-				main.runServer(ConfigurationForServer.parse(args));
-			}
-		});
+		Thread server = new Thread(() -> main.runServer(ConfigurationForServer.parse(args.toArray(new String[] {}))));
 
 		server.start();
 
