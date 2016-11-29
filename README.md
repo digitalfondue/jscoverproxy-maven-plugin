@@ -21,13 +21,16 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 		</execution>
 	</executions>
 	<configuration>
-		<host>localhost</host>
-		<port>${jasmine.serverPort}</port>
+		<baseUrl>http://localhost:${jasmine.serverPort}</baseUrl>
+		<outputDir>${project.build.directory}/report/</outputDir>
 		<noInstruments>
 			<noInstrument>webjars/</noInstrument>
 			<noInstrument>classpath/</noInstrument>
 			<noInstrument>spec/</noInstrument>
 		</noInstruments>
+		<jsSrcDir>src/main/webapp/app</jsSrcDir>
+		<generateXMLSUMMARY>true</generateXMLSUMMARY>
+		<generateLCOV>true</generateLCOV>
 	</configuration>
 </plugin>
 ```
