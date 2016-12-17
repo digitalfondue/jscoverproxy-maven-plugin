@@ -5,10 +5,9 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import jscover.ConfigurationCommon;
 import org.apache.commons.codec.net.URLCodec;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -33,8 +32,14 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import jscover.Main;
 import jscover.server.ConfigurationForServer;
 
+import static java.lang.String.format;
+import static jscover.ConfigurationCommon.NO_INSTRUMENT_PREFIX;
+import static jscover.ConfigurationCommon.NO_INSTRUMENT_REG_PREFIX;
+import static jscover.ConfigurationCommon.ONLY_INSTRUMENT_REG_PREFIX;
+
 @Mojo(name = "coverage", defaultPhase = LifecyclePhase.VERIFY)
 public class JSCoverProxyMavenMojo extends AbstractMojo {
+	private ConfigurationForServer defaults = new ConfigurationForServer();
 
 	@Parameter(required = true)
 	private String baseUrl;
@@ -52,7 +57,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	private String textForEndTest = "finished";
 
 	@Parameter
-	private String jsSrcDir;
+	private File jsSrcDir;
 
 	@Parameter
 	private boolean generateXMLSUMMARY;
@@ -64,7 +69,16 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	private boolean generateCOBERTURAXML;
 
 	@Parameter
-	private List<String> noInstruments;
+	protected int JSVersion = defaults.getJSVersion();
+
+	@Parameter
+	protected final List<String> instrumentPathArgs = new ArrayList<String>();
+
+	@Parameter
+	protected boolean includeUnloadedJS = defaults.isIncludeUnloadedJS();
+
+	@Parameter
+	protected boolean detectCoalesce = defaults.isDetectCoalesce();
 
 	private HtmlUnitDriver getWebClient(int portForJSCoverProxy) {
 		Proxy proxy = new Proxy().setHttpProxy("localhost:" + portForJSCoverProxy);
@@ -83,21 +97,21 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 			s.setReuseAddress(true);
 			portForJSCoverProxy = s.getLocalPort();
 		} catch (IOException e) {
+			throw new MojoExecutionException("Could assign a port", e);
 		}
 
-		final List<String> args = new ArrayList<>(Arrays.asList("-ws", "--port=" + portForJSCoverProxy, "--proxy",
-				"--local-storage", "--report-dir=" + outputDir.getAbsolutePath()));
-		if (noInstruments != null && !noInstruments.isEmpty()) {
-			args.addAll(noInstruments.stream().map(s -> "--no-instrument=" + s).collect(Collectors.toList()));
-		}
-
+		getLog().info("Using port " + portForJSCoverProxy);
 		getLog().info("Output dir for report is " + outputDir.getAbsolutePath());
 		getLog().info("Url for tests is " + baseUrl);
 
+		final ConfigurationForServer config = getConfigurationForServer(portForJSCoverProxy);
+		config.validate();
+		if (config.isInvalid())
+			throw new MojoExecutionException("Invalid configuration");
 		final Main main = new Main();
 		main.initialize();
 
-		Thread server = new Thread(() -> main.runServer(ConfigurationForServer.parse(args.toArray(new String[] {}))));
+		Thread server = new Thread(() -> main.runServer(config));
 
 		getLog().info("Started JSCover proxy server");
 		server.start();
@@ -137,51 +151,80 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 			main.stop();
 
 			String reportPath = new File(outputDir, reportName).getAbsolutePath();
+			if (includeUnloadedJS) {
+				verifySrcDirectoryPresent("including unloaded JavaScript");
+			}
 			if (generateXMLSUMMARY) {
-				getLog().info("Generating XMLSUMMARY");
-				try {
-					jscover.report.Main.main(new String[] { "--format=XMLSUMMARY", reportPath });
-				} catch (IOException e) {
-					throw new MojoExecutionException("Error while generating XMLSUMMARY", e);
-				}
-				getLog().info("XMLSUMMARY generated");
+				generateReport("XMLSUMMARY", reportPath);
 			}
-
 			if (generateLCOV) {
-				getLog().info("Generating LCOV");
-
-				if (jsSrcDir == null) {
-					getLog().error("jsSrcDir is mandatory when generating LCOV report");
-					throw new MojoExecutionException("jsSrcDir is mandatory when generating LCOV report");
-				}
-
-				try {
-					jscover.report.Main.main(new String[] { "--format=LCOV", reportPath, jsSrcDir });
-				} catch (IOException e) {
-					throw new MojoExecutionException("Error while generating LCOV", e);
-				}
-				getLog().info("LCOV generated");
+				generateReport("LCOV", reportPath);
 			}
-
 			if (generateCOBERTURAXML) {
-				getLog().info("Generating COBERTURAXML");
-
-				if (jsSrcDir == null) {
-					getLog().error("jsSrcDir is mandatory when generating COBERTURAXML report");
-					throw new MojoExecutionException("jsSrcDir is mandatory when generating COBERTURAXML report");
-				}
-
-				try {
-					jscover.report.Main.main(new String[] { "--format=COBERTURAXML", reportPath, jsSrcDir });
-				} catch (IOException e) {
-					throw new MojoExecutionException("Error while generating COBERTURAXML", e);
-				}
-				getLog().info("COBERTURAXML generated");
+				generateReport("COBERTURAXML", reportPath);
 			}
 
 			getLog().info("Finished JSCoverProxy");
 		}
 
+	}
+
+	private void generateReport(String format, String reportPath) throws MojoExecutionException {
+		getLog().info("Generating " + format);
+
+		verifySrcDirectoryPresent("generating " + format + " report");
+
+		try {
+			if (format == "XMLSUMMARY")
+                jscover.report.Main.main(new String[] { "--format=" + format, reportPath});
+			else
+                jscover.report.Main.main(new String[] { "--format=" + format, reportPath, jsSrcDir.getCanonicalPath() });
+        } catch (IOException e) {
+            throw new MojoExecutionException("Error while generating " + format, e);
+        }
+		getLog().info(format + " generated");
+	}
+
+	private void verifySrcDirectoryPresent(String messageSuffix) throws MojoExecutionException {
+		if (jsSrcDir == null) {
+			String message = "jsSrcDir is mandatory when " + messageSuffix;
+			getLog().error(message);
+            throw new MojoExecutionException(message);
+        }
+	}
+
+	protected void setCommonConfiguration(ConfigurationCommon config) throws MojoExecutionException {
+		config.setIncludeBranch(true);
+		config.setIncludeFunction(true);
+		config.setLocalStorage(true);
+		config.setIncludeUnloadedJS(includeUnloadedJS);
+		config.setJSVersion(JSVersion);
+		config.setDetectCoalesce(detectCoalesce);
+		for (String instrumentArg : instrumentPathArgs) {
+			if (instrumentArg.startsWith(NO_INSTRUMENT_PREFIX)) {
+				config.addNoInstrument(instrumentArg);
+			} else if (instrumentArg.startsWith(NO_INSTRUMENT_REG_PREFIX)) {
+				config.addNoInstrumentReg(instrumentArg);
+			} else if (instrumentArg.startsWith(ONLY_INSTRUMENT_REG_PREFIX)) {
+				config.addOnlyInstrumentReg(instrumentArg);
+			} else {
+				throw new MojoExecutionException(format("Invalid instrument path option '%s'", instrumentArg));
+			}
+		}
+	}
+
+
+	private ConfigurationForServer getConfigurationForServer(int port) throws MojoExecutionException {
+		ConfigurationForServer config = new ConfigurationForServer();
+		//Common parameters
+		setCommonConfiguration(config);
+		//Server parameters
+		if (jsSrcDir != null)
+			config.setDocumentRoot(jsSrcDir);
+		config.setPort(port);
+		config.setProxy(true);
+		config.setReportDir(outputDir.getAbsoluteFile());
+		return config;
 	}
 
 }

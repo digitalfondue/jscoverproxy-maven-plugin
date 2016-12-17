@@ -16,7 +16,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 <plugin>
 	<groupId>ch.digitalfondue.jscover</groupId>
 	<artifactId>jscoverproxy-maven-plugin</artifactId>
-	<version>1.0.25</version>
+	<version>1.1.0</version>
 	<executions>
 		<execution>
 			<goals>
@@ -27,14 +27,20 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 	<configuration>
 		<baseUrl>http://localhost:${jasmine.serverPort}</baseUrl>
 		<outputDir>${project.build.directory}/report/</outputDir>
-		<noInstruments>
-			<noInstrument>webjars/</noInstrument>
-			<noInstrument>classpath/</noInstrument>
-			<noInstrument>spec/</noInstrument>
-		</noInstruments>
+		<instrumentPathArgs>
+			<arg>--no-instrument=webjars/</arg>
+			<arg>--no-instrument=classpath/</arg>
+			<arg>--no-instrument=spec/</arg>
+		</instrumentPathArgs>
+		<!-- Optional Args
+		<JSVersion>180</JSVersion>
 		<jsSrcDir>src/main/webapp/app</jsSrcDir>
+		<includeUnloadedJS>true</includeUnloadedJS>
+		<detectCoalesce>true</detectCoalesce>
 		<generateXMLSUMMARY>true</generateXMLSUMMARY>
+		<generateCOBERTURAXML>true</generateCOBERTURAXML>
 		<generateLCOV>true</generateLCOV>
+		-->
 	</configuration>
 </plugin>
 ```
