@@ -27,16 +27,16 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 	<configuration>
 		<baseUrl>http://localhost:${jasmine.serverPort}</baseUrl>
 		<outputDir>${project.build.directory}/report/</outputDir>
-        <instrumentPathArgs>
-            <arg>--no-instrument=webjars/</arg>
-            <arg>--no-instrument=classpath/</arg>
-            <arg>--no-instrument=spec/</arg>
-        </instrumentPathArgs>
-        <!-- Optional Args
-        <JSVersion>180</JSVersion>
+		<instrumentPathArgs>
+			<arg>--no-instrument=webjars/</arg>
+			<arg>--no-instrument=classpath/</arg>
+			<arg>--no-instrument=spec/</arg>
+		</instrumentPathArgs>
+		<!-- Optional Args
+		<JSVersion>180</JSVersion>
 		<jsSrcDir>src/main/webapp/app</jsSrcDir>
-        <includeUnloadedJS>true</includeUnloadedJS>
-        <detectCoalesce>true</detectCoalesce>
+		<includeUnloadedJS>true</includeUnloadedJS>
+		<detectCoalesce>true</detectCoalesce>
 		<generateXMLSUMMARY>true</generateXMLSUMMARY>
 		<generateCOBERTURAXML>true</generateCOBERTURAXML>
 		<generateLCOV>true</generateLCOV>
