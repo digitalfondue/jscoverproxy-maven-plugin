@@ -158,7 +158,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 				generateReport("XMLSUMMARY", reportPath);
 			}
 			if (generateLCOV) {
-				generateReport("LOCV", reportPath);
+				generateReport("LCOV", reportPath);
 			}
 			if (generateCOBERTURAXML) {
 				generateReport("COBERTURAXML", reportPath);
@@ -175,7 +175,10 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		verifySrcDirectoryPresent("generating " + format + " report");
 
 		try {
-            jscover.report.Main.main(new String[] { "--format=" + format, reportPath, jsSrcDir.getCanonicalPath() });
+			if (format == "XMLSUMMARY")
+                jscover.report.Main.main(new String[] { "--format=" + format, reportPath});
+			else
+                jscover.report.Main.main(new String[] { "--format=" + format, reportPath, jsSrcDir.getCanonicalPath() });
         } catch (IOException e) {
             throw new MojoExecutionException("Error while generating " + format, e);
         }
