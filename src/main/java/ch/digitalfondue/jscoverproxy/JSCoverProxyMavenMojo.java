@@ -5,10 +5,9 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import jscover.ConfigurationCommon;
 import org.apache.commons.codec.net.URLCodec;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -20,6 +19,7 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.mozilla.javascript.Context;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
@@ -33,8 +33,14 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import jscover.Main;
 import jscover.server.ConfigurationForServer;
 
+import static java.lang.String.format;
+import static jscover.ConfigurationCommon.NO_INSTRUMENT_PREFIX;
+import static jscover.ConfigurationCommon.NO_INSTRUMENT_REG_PREFIX;
+import static jscover.ConfigurationCommon.ONLY_INSTRUMENT_REG_PREFIX;
+
 @Mojo(name = "coverage", defaultPhase = LifecyclePhase.VERIFY)
 public class JSCoverProxyMavenMojo extends AbstractMojo {
+	private ConfigurationForServer defaults = new ConfigurationForServer();
 
 	@Parameter(required = true)
 	private String baseUrl;
@@ -44,6 +50,9 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 
 	@Parameter(required = true)
 	private File outputDir;
+
+	@Parameter
+	private File documentRoot = defaults.getDocumentRoot();
 
 	@Parameter
 	private String cssSelectorForEndTest = ".jasmine-duration";
@@ -64,7 +73,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	private boolean generateCOBERTURAXML;
 
 	@Parameter
-	private List<String> noInstruments;
+	protected final List<String> instrumentPathArgs = new ArrayList<String>();
 
 	private HtmlUnitDriver getWebClient(int portForJSCoverProxy) {
 		Proxy proxy = new Proxy().setHttpProxy("localhost:" + portForJSCoverProxy);
@@ -85,19 +94,17 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		} catch (IOException e) {
 		}
 
-		final List<String> args = new ArrayList<>(Arrays.asList("-ws", "--port=" + portForJSCoverProxy, "--proxy",
-				"--local-storage", "--report-dir=" + outputDir.getAbsolutePath()));
-		if (noInstruments != null && !noInstruments.isEmpty()) {
-			args.addAll(noInstruments.stream().map(s -> "--no-instrument=" + s).collect(Collectors.toList()));
-		}
-
 		getLog().info("Output dir for report is " + outputDir.getAbsolutePath());
 		getLog().info("Url for tests is " + baseUrl);
 
+		final ConfigurationForServer config = getConfigurationForServer(portForJSCoverProxy);
+		config.validate();
+		if (config.isInvalid())
+			throw new MojoExecutionException("Invalid configuration");
 		final Main main = new Main();
 		main.initialize();
 
-		Thread server = new Thread(() -> main.runServer(ConfigurationForServer.parse(args.toArray(new String[] {}))));
+		Thread server = new Thread(() -> main.runServer(config));
 
 		getLog().info("Started JSCover proxy server");
 		server.start();
@@ -182,6 +189,39 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 			getLog().info("Finished JSCoverProxy");
 		}
 
+	}
+
+	protected void setCommonConfiguration(ConfigurationCommon config) throws MojoExecutionException {
+		config.setIncludeBranch(true);
+		config.setIncludeFunction(true);
+		config.setLocalStorage(true);
+		config.setIncludeUnloadedJS(false);
+		config.setJSVersion(Context.VERSION_1_8);
+		config.setDetectCoalesce(false);
+		for (String instrumentArg : instrumentPathArgs) {
+			if (instrumentArg.startsWith(NO_INSTRUMENT_PREFIX)) {
+				config.addNoInstrument(instrumentArg);
+			} else if (instrumentArg.startsWith(NO_INSTRUMENT_REG_PREFIX)) {
+				config.addNoInstrumentReg(instrumentArg);
+			} else if (instrumentArg.startsWith(ONLY_INSTRUMENT_REG_PREFIX)) {
+				config.addOnlyInstrumentReg(instrumentArg);
+			} else {
+				throw new MojoExecutionException(format("Invalid instrument path option '%s'", instrumentArg));
+			}
+		}
+	}
+
+
+	private ConfigurationForServer getConfigurationForServer(int port) throws MojoExecutionException {
+		ConfigurationForServer config = new ConfigurationForServer();
+		//Common parameters
+		setCommonConfiguration(config);
+		//Server parameters
+		config.setDocumentRoot(documentRoot);//
+		config.setPort(port);
+		config.setProxy(true);
+		config.setReportDir(outputDir.getAbsoluteFile());
+		return config;
 	}
 
 }
