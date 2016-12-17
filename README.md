@@ -1,5 +1,9 @@
 # jscoverproxy-maven-plugin
 
+
+[![Maven Central](https://img.shields.io/maven-central/v/ch.digitalfondue.jscover/jscoverproxy-maven-plugin.svg)](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22jscoverproxy-maven-plugin%22)
+
+
 A maven plugin for replacing saga-maven-plugin, as it does not generate the correct coverage anymore when used with the jasmine-maven-plugin.
 
 
