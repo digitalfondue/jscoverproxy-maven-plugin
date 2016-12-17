@@ -38,7 +38,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
         <includeUnloadedJS>true</includeUnloadedJS>
         <detectCoalesce>true</detectCoalesce>
 		<generateXMLSUMMARY>true</generateXMLSUMMARY>
-		<generateXMLSUMMARY>true</generateXMLSUMMARY>
+		<generateCOBERTURAXML>true</generateCOBERTURAXML>
 		<generateLCOV>true</generateLCOV>
 		-->
 	</configuration>
