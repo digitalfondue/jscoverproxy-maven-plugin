@@ -66,6 +66,15 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	@Parameter
 	private List<String> noInstruments;
 
+	@Parameter(defaultValue = "60")
+	private int timeout;
+
+	@Parameter(property = "skipTests")
+	protected boolean skipTests;
+
+	@Parameter(property = "maven.test.skip")
+	protected boolean mvnTestSkip;
+
 	private HtmlUnitDriver getWebClient(int portForJSCoverProxy) {
 		Proxy proxy = new Proxy().setHttpProxy("localhost:" + portForJSCoverProxy);
 		DesiredCapabilities caps = new DesiredCapabilities();
@@ -75,6 +84,11 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	}
 
 	public void execute() throws MojoExecutionException, MojoFailureException {
+
+		if(skipTests || mvnTestSkip) {
+			getLog().info("Skipping jscover-proxy-maven");
+			return;
+		}
 
 		int portForJSCoverProxy = 3129;
 
@@ -107,7 +121,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		getLog().info("WebDriver is going to url: " + baseUrl);
 
 		webClient.get(baseUrl);
-		new WebDriverWait(webClient, 20).until(ExpectedConditions
+		new WebDriverWait(webClient, timeout).until(ExpectedConditions
 				.textToBePresentInElementLocated(By.cssSelector(cssSelectorForEndTest), textForEndTest));
 
 		getLog().info("Test ended, generating report");
