@@ -16,7 +16,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 <plugin>
 	<groupId>ch.digitalfondue.jscover</groupId>
 	<artifactId>jscoverproxy-maven-plugin</artifactId>
-	<version>1.0.25</version>
+	<version>1.1.0</version>
 	<executions>
 		<execution>
 			<goals>
@@ -35,6 +35,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 		<jsSrcDir>src/main/webapp/app</jsSrcDir>
 		<generateXMLSUMMARY>true</generateXMLSUMMARY>
 		<generateLCOV>true</generateLCOV>
+		<timeout>60</timeout> <!-- default 60 seconds -->
 	</configuration>
 </plugin>
 ```
