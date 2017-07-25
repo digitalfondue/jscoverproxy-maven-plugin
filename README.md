@@ -32,10 +32,29 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 			<noInstrument>classpath/</noInstrument>
 			<noInstrument>spec/</noInstrument>
 		</noInstruments>
-		<jsSrcDir>src/main/webapp/app</jsSrcDir>
-		<generateXMLSUMMARY>true</generateXMLSUMMARY>
-		<generateLCOV>true</generateLCOV>
+		<jsSrcDir>src/main/webapp/app</jsSrcDir><!-- mandatory for LCOV and  COBERTURAXML -->
+		<generateXMLSUMMARY>true</generateXMLSUMMARY><!-- optional -->
+		<generateLCOV>true</generateLCOV><!-- optional -->
+		<generateCOBERTURAXML>true</generateCOBERTURAXML><!-- optional -->
 		<timeout>60</timeout> <!-- default 60 seconds -->
+		<!-- optionals:
+		<includeUnloadedJS>true</includeUnloadedJS>
+        <detectCoalesce>true</detectCoalesce>
+        -->
 	</configuration>
 </plugin>
 ```
+
+for additional instrumentation configuration, use instead of "<noInstruments>":
+
+```
+<instrumentPathArgs>
+    <arg>--no-instrument=webjars/</arg>
+    <arg>--no-instrument=classpath/</arg>
+    <arg>--no-instrument=spec/</arg>
+</instrumentPathArgs>
+```
+
+you can also use: --no-instrument-reg= and --only-instrument-reg=
+
+
