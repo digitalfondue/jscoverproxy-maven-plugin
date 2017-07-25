@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.google.javascript.jscomp.parsing.Config;
+import jscover.ConfigurationCommon;
 import org.apache.commons.codec.net.URLCodec;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -35,8 +37,15 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import jscover.Main;
 import jscover.server.ConfigurationForServer;
 
+import static java.lang.String.format;
+import static jscover.ConfigurationCommon.NO_INSTRUMENT_PREFIX;
+import static jscover.ConfigurationCommon.NO_INSTRUMENT_REG_PREFIX;
+import static jscover.ConfigurationCommon.ONLY_INSTRUMENT_REG_PREFIX;
+
 @Mojo(name = "coverage", defaultPhase = LifecyclePhase.VERIFY)
 public class JSCoverProxyMavenMojo extends AbstractMojo {
+
+	private ConfigurationForServer defaults = new ConfigurationForServer();
 
 	@Parameter(required = true)
 	private String baseUrl;
@@ -54,7 +63,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	private String textForEndTest = "finished";
 
 	@Parameter
-	private String jsSrcDir;
+	private File jsSrcDir;
 
 	@Parameter
 	private boolean generateXMLSUMMARY;
@@ -67,6 +76,18 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 
 	@Parameter
 	private List<String> noInstruments;
+
+	@Parameter
+	private Config.LanguageMode ecmaVersion = defaults.getECMAVersion();
+
+	@Parameter
+	protected final List<String> instrumentPathArgs = new ArrayList<>();
+
+	@Parameter
+ 	private boolean includeUnloadedJS = defaults.isIncludeUnloadedJS();
+
+	@Parameter
+ 	protected boolean detectCoalesce = defaults.isDetectCoalesce();
 
 	@Parameter(defaultValue = "60")
 	private int timeout;
@@ -102,10 +123,10 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		} catch (IOException e) {
 		}
 
-		final List<String> args = new ArrayList<>(Arrays.asList("-ws", "--port=" + portForJSCoverProxy, "--proxy",
-				"--local-storage", "--report-dir=" + outputDir.getAbsolutePath()));
-		if (noInstruments != null && !noInstruments.isEmpty()) {
-			args.addAll(noInstruments.stream().map(s -> "--no-instrument=" + s).collect(Collectors.toList()));
+		ConfigurationForServer config = getConfigurationForServer(portForJSCoverProxy);
+		config.validate();
+		if (config.isInvalid()) {
+			throw new MojoExecutionException("Invalid configuration");
 		}
 
 		getLog().info("Output dir for report is " + outputDir.getAbsolutePath());
@@ -114,7 +135,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		final Main main = new Main();
 		main.initialize();
 
-		Thread server = new Thread(() -> main.runServer(ConfigurationForServer.parse(args.toArray(new String[] {}))));
+		Thread server = new Thread(() -> main.runServer(config));
 
 		getLog().info("Started JSCover proxy server");
 		server.start();
@@ -184,13 +205,51 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		try {
 			List<String> params = new ArrayList<>(Arrays.asList("--format="+type, reportPath));
 			if(jsSrcDirCheck) {
-				params.add(jsSrcDir);
+				params.add(jsSrcDir.getCanonicalPath());
 			}
 			jscover.report.Main.main(params.toArray(new String[] {}));
 		} catch (IOException e) {
 			throw new MojoExecutionException("Error while generating " + type, e);
 		}
 		getLog().info(type + " generated");
+	}
+
+	protected void setCommonConfiguration(ConfigurationCommon config) throws MojoExecutionException {
+		config.setIncludeBranch(true);
+		config.setIncludeFunction(true);
+		config.setLocalStorage(true);
+		config.setIncludeUnloadedJS(includeUnloadedJS);
+		config.setECMAVersion(ecmaVersion);
+		config.setDetectCoalesce(detectCoalesce);
+		for (String instrumentArg : instrumentPathArgs) {
+			if (instrumentArg.startsWith(NO_INSTRUMENT_PREFIX)) {
+				config.addNoInstrument(instrumentArg);
+			} else if (instrumentArg.startsWith(NO_INSTRUMENT_REG_PREFIX)) {
+				config.addNoInstrumentReg(instrumentArg);
+			} else if (instrumentArg.startsWith(ONLY_INSTRUMENT_REG_PREFIX)) {
+				config.addOnlyInstrumentReg(instrumentArg);
+			} else {
+				throw new MojoExecutionException(format("Invalid instrument path option '%s'", instrumentArg));
+			}
+		}
+
+		for(String noInstrument : noInstruments) {
+			config.addNoInstrument("--no-instrument=" + noInstrument);
+		}
+	}
+
+
+	private ConfigurationForServer getConfigurationForServer(int port) throws MojoExecutionException {
+		ConfigurationForServer config = new ConfigurationForServer();
+		//Common parameters
+		setCommonConfiguration(config);
+		//Server parameters
+		if (jsSrcDir != null)
+			config.setDocumentRoot(jsSrcDir);
+		config.setPort(port);
+		config.setProxy(true);
+		config.setReportDir(outputDir.getAbsoluteFile());
+		return config;
 	}
 
 }
