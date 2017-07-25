@@ -16,7 +16,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 <plugin>
 	<groupId>ch.digitalfondue.jscover</groupId>
 	<artifactId>jscoverproxy-maven-plugin</artifactId>
-	<version>1.1.0</version>
+	<version>2.0.1</version>
 	<executions>
 		<execution>
 			<goals>
@@ -45,7 +45,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 </plugin>
 ```
 
-for additional instrumentation configuration, use instead of "<noInstruments>":
+for additional instrumentation configuration, use instead of "&lt;noInstruments>":
 
 ```
 <instrumentPathArgs>
