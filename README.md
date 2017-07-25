@@ -39,8 +39,8 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 		<timeout>60</timeout> <!-- default 60 seconds -->
 		<!-- optionals:
 		<includeUnloadedJS>true</includeUnloadedJS>
-        <detectCoalesce>true</detectCoalesce>
-        -->
+		<detectCoalesce>true</detectCoalesce>
+		-->
 	</configuration>
 </plugin>
 ```
