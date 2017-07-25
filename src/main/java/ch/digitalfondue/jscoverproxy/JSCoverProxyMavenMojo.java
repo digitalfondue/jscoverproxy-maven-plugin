@@ -25,8 +25,10 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
+import org.openqa.selenium.remote.BrowserType;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -80,6 +82,7 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		DesiredCapabilities caps = new DesiredCapabilities();
 		caps.setCapability(CapabilityType.PROXY, proxy);
 		caps.setJavascriptEnabled(true);
+		caps.setBrowserName(BrowserType.HTMLUNIT);
 		return new HtmlUnitDriver(caps);
 	}
 
@@ -121,8 +124,10 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		getLog().info("WebDriver is going to url: " + baseUrl);
 
 		webClient.get(baseUrl);
-		new WebDriverWait(webClient, timeout).until(ExpectedConditions
-				.textToBePresentInElementLocated(By.cssSelector(cssSelectorForEndTest), textForEndTest));
+
+		ExpectedCondition<Boolean> condition = ExpectedConditions.textToBePresentInElementLocated(By.cssSelector(cssSelectorForEndTest), textForEndTest);
+
+		new WebDriverWait(webClient, timeout).until((webDriver) -> condition.apply(webDriver));
 
 		getLog().info("Test ended, generating report");
 
@@ -152,50 +157,40 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 
 			String reportPath = new File(outputDir, reportName).getAbsolutePath();
 			if (generateXMLSUMMARY) {
-				getLog().info("Generating XMLSUMMARY");
-				try {
-					jscover.report.Main.main(new String[] { "--format=XMLSUMMARY", reportPath });
-				} catch (IOException e) {
-					throw new MojoExecutionException("Error while generating XMLSUMMARY", e);
-				}
-				getLog().info("XMLSUMMARY generated");
+				generate("XMLSUMMARY", reportPath, false);
 			}
 
 			if (generateLCOV) {
-				getLog().info("Generating LCOV");
-
-				if (jsSrcDir == null) {
-					getLog().error("jsSrcDir is mandatory when generating LCOV report");
-					throw new MojoExecutionException("jsSrcDir is mandatory when generating LCOV report");
-				}
-
-				try {
-					jscover.report.Main.main(new String[] { "--format=LCOV", reportPath, jsSrcDir });
-				} catch (IOException e) {
-					throw new MojoExecutionException("Error while generating LCOV", e);
-				}
-				getLog().info("LCOV generated");
+				generate("LCOV", reportPath, true);
 			}
 
 			if (generateCOBERTURAXML) {
-				getLog().info("Generating COBERTURAXML");
-
-				if (jsSrcDir == null) {
-					getLog().error("jsSrcDir is mandatory when generating COBERTURAXML report");
-					throw new MojoExecutionException("jsSrcDir is mandatory when generating COBERTURAXML report");
-				}
-
-				try {
-					jscover.report.Main.main(new String[] { "--format=COBERTURAXML", reportPath, jsSrcDir });
-				} catch (IOException e) {
-					throw new MojoExecutionException("Error while generating COBERTURAXML", e);
-				}
-				getLog().info("COBERTURAXML generated");
+				generate("COBERTURAXML", reportPath, true);
 			}
 
 			getLog().info("Finished JSCoverProxy");
 		}
+	}
 
+
+	private void generate(String type, String reportPath, boolean jsSrcDirCheck) throws MojoExecutionException {
+		getLog().info("Generating " + type);
+
+		if (jsSrcDirCheck && jsSrcDir == null) {
+			getLog().error("jsSrcDir is mandatory when generating " + type + " report");
+			throw new MojoExecutionException("jsSrcDir is mandatory when generating " + type + " report");
+		}
+
+		try {
+			List<String> params = new ArrayList<>(Arrays.asList("--format="+type, reportPath));
+			if(jsSrcDirCheck) {
+				params.add(jsSrcDir);
+			}
+			jscover.report.Main.main(params.toArray(new String[] {}));
+		} catch (IOException e) {
+			throw new MojoExecutionException("Error while generating " + type, e);
+		}
+		getLog().info(type + " generated");
 	}
 
 }
