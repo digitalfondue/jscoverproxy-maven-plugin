@@ -16,7 +16,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 <plugin>
 	<groupId>ch.digitalfondue.jscover</groupId>
 	<artifactId>jscoverproxy-maven-plugin</artifactId>
-	<version>2.0.1</version>
+	<version>2.0.2</version>
 	<executions>
 		<execution>
 			<goals>
