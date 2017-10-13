@@ -1,5 +1,6 @@
 package ch.digitalfondue.jscoverproxy;
 
+import com.gargoylesoftware.htmlunit.WebClient;
 import com.google.javascript.jscomp.parsing.Config;
 import jscover.ConfigurationCommon;
 import jscover.Main;
@@ -71,6 +72,9 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
     private boolean generateCOBERTURAXML;
 
     @Parameter
+    private List<String> removeJsSnippets = new ArrayList<>();
+
+    @Parameter
     private List<String> noInstruments;
 
     @Parameter
@@ -94,13 +98,31 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
     @Parameter(property = "maven.test.skip")
     protected boolean mvnTestSkip;
 
-    private HtmlUnitDriver getWebClient(int portForJSCoverProxy) {
+
+
+    private WebDriver getWebClient(int portForJSCoverProxy) {
         Proxy proxy = new Proxy().setHttpProxy("localhost:" + portForJSCoverProxy);
         DesiredCapabilities caps = new DesiredCapabilities();
         caps.setCapability(CapabilityType.PROXY, proxy);
         caps.setJavascriptEnabled(true);
         caps.setBrowserName(BrowserType.HTMLUNIT);
-        return new HtmlUnitDriver(caps);
+        return new HtmlUnitDriver(caps) {
+            @Override
+            protected WebClient modifyWebClient(WebClient client) {
+                client.setScriptPreProcessor((htmlPage, sourceCode, sourceName, lineNumber, htmlElement) -> {
+                    if(removeJsSnippets != null && !removeJsSnippets.isEmpty()) {
+                        for(String toReplace : removeJsSnippets) {
+                            sourceCode = sourceCode.replace(toReplace, "");
+                        }
+                        return sourceCode;
+                    } else {
+                        return sourceCode;
+                    }
+
+                });
+                return client;
+            }
+        };
     }
 
     public void execute() throws MojoExecutionException, MojoFailureException {

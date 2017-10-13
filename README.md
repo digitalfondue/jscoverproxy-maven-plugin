@@ -6,6 +6,8 @@
 
 A maven plugin for replacing saga-maven-plugin, as it does not generate the correct coverage anymore when used with the jasmine-maven-plugin.
 
+It's based on []JSCover](https://tntim96.github.io/JSCover/) project.
+
 
 # Example of use:
 
@@ -16,7 +18,7 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 <plugin>
 	<groupId>ch.digitalfondue.jscover</groupId>
 	<artifactId>jscoverproxy-maven-plugin</artifactId>
-	<version>2.0.2</version>
+	<version>2.0.2.1</version>
 	<executions>
 		<execution>
 			<goals>
@@ -40,7 +42,10 @@ See: http://searls.github.io/jasmine-maven-plugin/code-coverage.html : replace t
 		<!-- optionals:
 		<includeUnloadedJS>true</includeUnloadedJS>
 		<detectCoalesce>true</detectCoalesce>
-		-->
+		<removeJsSnippets>
+		    <removeJsSnippet>alert('tests');</removeJsSnippet> 
+		</removeJsSnippets>
+		--><!-- you can remove js code if it cause issues -->
 	</configuration>
 </plugin>
 ```
