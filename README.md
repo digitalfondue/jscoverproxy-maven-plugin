@@ -6,7 +6,7 @@
 
 A maven plugin for replacing saga-maven-plugin, as it does not generate the correct coverage anymore when used with the jasmine-maven-plugin.
 
-It's based on []JSCover](https://tntim96.github.io/JSCover/) project.
+It's powered by [JSCover](https://tntim96.github.io/JSCover/) project.
 
 
 # Example of use:
