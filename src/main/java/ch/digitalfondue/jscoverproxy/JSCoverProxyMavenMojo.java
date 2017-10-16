@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.gargoylesoftware.htmlunit.WebClient;
 import org.apache.commons.codec.net.URLCodec;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -55,6 +56,9 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 	private String jsSrcDir;
 
 	@Parameter
+	private List<String> removeJsSnippets = new ArrayList<>();
+
+	@Parameter
 	private boolean generateXMLSUMMARY;
 
 	@Parameter
@@ -80,7 +84,23 @@ public class JSCoverProxyMavenMojo extends AbstractMojo {
 		DesiredCapabilities caps = new DesiredCapabilities();
 		caps.setCapability(CapabilityType.PROXY, proxy);
 		caps.setJavascriptEnabled(true);
-		return new HtmlUnitDriver(caps);
+		return new HtmlUnitDriver(caps) {
+			@Override
+			protected WebClient modifyWebClient(WebClient client) {
+				client.setScriptPreProcessor((htmlPage, sourceCode, sourceName, lineNumber, htmlElement) -> {
+					if(removeJsSnippets != null && !removeJsSnippets.isEmpty()) {
+						for(String toReplace : removeJsSnippets) {
+							sourceCode = sourceCode.replace(toReplace, "");
+						}
+						return sourceCode;
+					} else {
+						return sourceCode;
+					}
+
+				});
+				return client;
+			}
+		};
 	}
 
 	public void execute() throws MojoExecutionException, MojoFailureException {
